@@ -1,0 +1,30 @@
+@import "development-bundle/themes/base/jquery.ui.base.css";
+@import "development-bundle/themes/base/jquery.ui.theme.css";
+
+html
+{
+height:98%;
+}
+
+body
+{
+height:100%;
+}
+
+#flashcontent{
+height:90%;
+}
+
+#dates{
+z-index:1000;
+margin:5px;
+float:left;
+}
+#format{
+float:left;
+padding-left:4em;
+}
+#radio{
+float:left;
+padding-left:4em;
+}

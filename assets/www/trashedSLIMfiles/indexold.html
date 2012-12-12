@@ -1,0 +1,211 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+            "http://www.w3.org/TR/html4/strict.dtd">
+
+<html>
+<head>
+	<title>Votey Solar</title>
+	<link rel="stylesheet" href="style.css">
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.2/jquery.min.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+	<script src="development-bundle/jquery-1.7.2.js"></script>
+	<script src="development-bundle/ui/jquery.ui.core.js"></script>
+	<script src="development-bundle/ui/jquery.ui.widget.js"></script>
+	<script src="development-bundle/ui/jquery.ui.datepicker.js"></script>
+	<script src="enlighten-api.js"></script>
+	<script src="jquery.flot.min.js"></script>
+</head>
+
+<body>
+  <script type="text/javascript" src="amline/swfobject.js"></script>
+	<div id="flashcontent">
+		<strong>You need to upgrade your Flash Player</strong>
+	</div>
+	
+<div id="dates">
+<label for="from">From</label>
+<input type="text" id="from" name="from"/>
+<label for="to">to</label>
+<input type="text" id="to" name="to"/>
+</div>
+
+<input class="plotButton" type="button" value="Plot"><br>
+
+<script>
+$("input.plotButton").click(function () {
+var apiRequest = new enphaseApiRequest();
+apiRequest.apiKey = '811837950565be8af0d6a96b973142de';
+apiRequest.getSystems(preFun);
+})
+</script>
+
+
+<script>
+	$(function() {
+		var dates = $( "#from, #to" ).datepicker({
+			defaultDate: "+1w",
+			changeMonth: true,
+			numberOfMonths: 1,
+			minDate:new Date(2012, 4 - 1, 10),
+			maxDate:+0,
+			onSelect: function( selectedDate ) {
+				var option = this.id == "from" ? "minDate" : "maxDate",
+					instance = $( this ).data( "datepicker" ),
+					date = $.datepicker.parseDate(
+						instance.settings.dateFormat ||
+						$.datepicker._defaults.dateFormat,
+						selectedDate, instance.settings );
+				dates.not( this ).datepicker( "option", option, date );
+			}
+		});
+	});
+</script>
+
+<script>
+
+var allTheStats;
+
+function preFun(data)
+{
+	var systemID = data.systems[0].system_id;
+	var apiKey = '811837950565be8af0d6a96b973142de';
+	var apiRequest = new enphaseApiRequest(apiKey,systemID);
+	var fromdate = new Date(document.getElementById('from').value);
+	var todate = new Date(document.getElementById('to').value);
+	var from = fromdate.toISO8601String();
+	var to = todate.toISO8601String();
+	var currentdate = new Date(fromdate);
+	if (from && to)
+	{
+		if (from!=to)
+		{
+			span = Math.ceil((todate.getTime()-fromdate.getTime())/(86400000));
+			for (i=0;i<span;i++)
+			{
+				apiRequest.getStats(accumulateStats,currentdate.toISO8601String(),to);
+				currentdate = new Date(currentdate.getTime()+(86400000));
+			}
+			graphAccumulation(allTheStats);
+		}
+	}
+	else
+	{
+		apiRequest.getStats(graphData);
+	}
+}
+
+function accumulateStats(stats)
+{
+	var intervals = stats.intervals;
+	console.debug(intervals);
+	allTheStats= allTheStats+intervals;
+	console.debug(allTheStats);
+}
+
+function graphAccumulation(stats)
+{
+    var intervals = stats;
+    var totalEnergy = 0;
+	var xmlDates = '<series>';
+	var xmlkW = "<graph gid='0'>";
+	var xmlkWh = "<graph gid='1'>";
+	var start = new Date();
+    var date = new Date();
+	date.setISO8601(intervals[0].end_date);
+	
+    // Push all data onto arrays for graphing
+    for (var i = 0; i < intervals.length; i++) {
+	if (i == 288)//reset total energy every day=17280*5min
+		{
+		totalEnergy=0;
+		}
+        date.setISO8601(intervals[i].end_date);
+        var jDate = new Date();
+        // Date comes back in UTC; convert to local time
+        totalEnergy += intervals[i].enwh;
+		xmlDates=xmlDates+"<value xid='"+i+"'>"+date.toLocaleTimeString()+'</value>';
+		xmlkW=xmlkW+"<value xid='"+i+"'>"+(intervals[i].powr/1000)+'</value>';
+		xmlkWh=xmlkWh+"<value xid='"+i+"'>"+totalEnergy/1000+'</value>';
+    }
+	
+	
+	xmlDates=xmlDates+"</series>";
+	xmlkW=xmlkW+"</graph>";
+	xmlkWh=xmlkWh+"</graph>";
+	var xmlText = encodeURIComponent("<chart>"+xmlDates+"<graphs>"+xmlkW+xmlkWh+"</graphs></chart>");
+	
+	var flashvars = {}; 
+	var attributes = {}; 
+	var params={};
+	params.wmode="opaque"; 
+	var so = new SWFObject("amline/amline.swf", "amline", "100%", "100%", "8", "#FFFFFF",flashvars,params,attributes);
+	so.addVariable("path", "amline/");
+	so.addVariable("chart_settings", encodeURIComponent("<settings><font>Tahoma</font><redraw>true</redraw><hide_bullets_count>18</hide_bullets_count><decimals_separator>.</decimals_separator><background><alpha>90</alpha><border_alpha>10</border_alpha></background><plot_area><margins><left>50</left><right>40</right><bottom>65</bottom></margins></plot_area><grid><x><alpha>10</alpha><approx_count>9</approx_count></x><y_left><alpha>10</alpha></y_left></grid><axes><x><width>1</width><color>0D8ECF</color></x><y_left><width>1</width><color>0D8ECF</color></y_left></axes><indicator><color>000000</color><x_balloon_text_color>FFFFFF</x_balloon_text_color><line_alpha>50</line_alpha><selection_color>0D8ECF</selection_color><selection_alpha>20</selection_alpha></indicator><legend><graph_on_off>0</graph_on_off></legend><zoom_out_button><text_color_hover>FF0F00</text_color_hover></zoom_out_button><help><button><color>FCD202</color><text_color>000000</text_color><text_color_hover>FF0F00</text_color_hover></button><balloon><text><![CDATA[Click on the graph to turn on/off value baloon <br/><br/>Click on legend key to show/hide graph<br/><br/>Mark the area you wish to enlarge]]></text><color>FCD202</color><text_color>000000</text_color></balloon></help><graphs><graph gid='0'><title>kiloWatts</title><color>0D8ECF</color><color_hover>FF0F00</color_hover></graph><graph gid='1'><title>kiloWatthours</title><color>B0DE09</color><color_hover>FF0F00</color_hover><line_width>2</line_width><fill_alpha>30</fill_alpha><bullet>round</bullet></graph></graphs><labels><label lid='0'><text><![CDATA[<b>Today's Static Panel Energy Production </b>]]></text><y>25</y><text_size>13</text_size><align>center</align></label></labels></settings>"));
+	so.addVariable("chart_data",xmlText);
+	so.write("flashcontent");
+	
+
+}
+var apiRequest = new enphaseApiRequest();
+apiRequest.apiKey = '811837950565be8af0d6a96b973142de';
+apiRequest.getSystems(preFun);
+
+</script>
+
+<script>
+function graphData(stats)
+{
+    var intervals = stats.intervals;
+    var totalEnergy = 0;
+	var xmlDates = '<series>';
+	var xmlkW = "<graph gid='0'>";
+	var xmlkWh = "<graph gid='1'>";
+	var start = new Date();
+    var date = new Date();
+	date.setISO8601(intervals[0].end_date);
+	
+    // Push all data onto arrays for graphing
+    for (var i = 0; i < intervals.length; i++) {
+	if (i == 288)//reset total energy every day=17280*5min
+		{
+		totalEnergy=0;
+		}
+        date.setISO8601(intervals[i].end_date);
+        var jDate = new Date();
+        // Date comes back in UTC; convert to local time
+        totalEnergy += intervals[i].enwh;
+		xmlDates=xmlDates+"<value xid='"+i+"'>"+date.toLocaleTimeString()+'</value>';
+		xmlkW=xmlkW+"<value xid='"+i+"'>"+(intervals[i].powr/1000)+'</value>';
+		xmlkWh=xmlkWh+"<value xid='"+i+"'>"+totalEnergy/1000+'</value>';
+    }
+	
+	
+	xmlDates=xmlDates+"</series>";
+	xmlkW=xmlkW+"</graph>";
+	xmlkWh=xmlkWh+"</graph>";
+	var xmlText = encodeURIComponent("<chart>"+xmlDates+"<graphs>"+xmlkW+xmlkWh+"</graphs></chart>");
+	
+	var flashvars = {}; 
+	var attributes = {}; 
+	var params={};
+	params.wmode="opaque"; 
+	var so = new SWFObject("amline/amline.swf", "amline", "100%", "100%", "8", "#FFFFFF",flashvars,params,attributes);
+	so.addVariable("path", "amline/");
+	so.addVariable("chart_settings", encodeURIComponent("<settings><font>Tahoma</font><redraw>true</redraw><hide_bullets_count>18</hide_bullets_count><decimals_separator>.</decimals_separator><background><alpha>90</alpha><border_alpha>10</border_alpha></background><plot_area><margins><left>50</left><right>40</right><bottom>65</bottom></margins></plot_area><grid><x><alpha>10</alpha><approx_count>9</approx_count></x><y_left><alpha>10</alpha></y_left></grid><axes><x><width>1</width><color>0D8ECF</color></x><y_left><width>1</width><color>0D8ECF</color></y_left></axes><indicator><color>000000</color><x_balloon_text_color>FFFFFF</x_balloon_text_color><line_alpha>50</line_alpha><selection_color>0D8ECF</selection_color><selection_alpha>20</selection_alpha></indicator><legend><graph_on_off>0</graph_on_off></legend><zoom_out_button><text_color_hover>FF0F00</text_color_hover></zoom_out_button><help><button><color>FCD202</color><text_color>000000</text_color><text_color_hover>FF0F00</text_color_hover></button><balloon><text><![CDATA[Click on the graph to turn on/off value baloon <br/><br/>Click on legend key to show/hide graph<br/><br/>Mark the area you wish to enlarge]]></text><color>FCD202</color><text_color>000000</text_color></balloon></help><graphs><graph gid='0'><title>kiloWatts</title><color>0D8ECF</color><color_hover>FF0F00</color_hover></graph><graph gid='1'><title>kiloWatthours</title><color>B0DE09</color><color_hover>FF0F00</color_hover><line_width>2</line_width><fill_alpha>30</fill_alpha><bullet>round</bullet></graph></graphs><labels><label lid='0'><text><![CDATA[<b>Today's Static Panel Energy Production </b>]]></text><y>25</y><text_size>13</text_size><align>center</align></label></labels></settings>"));
+	so.addVariable("chart_data",xmlText);
+	so.write("flashcontent");
+	
+
+}
+var apiRequest = new enphaseApiRequest();
+apiRequest.apiKey = '811837950565be8af0d6a96b973142de';
+apiRequest.getSystems(preFun);
+
+</script>
+
+
+
+
+
+</body>
+</html>

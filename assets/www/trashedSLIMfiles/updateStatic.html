@@ -1,0 +1,21 @@
+<html>
+
+	<script src="enlightenAPI.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.2/jquery.min.js"></script>
+
+	<script>
+	var theDataStatic = new EnAPI();
+	theDataStatic.setSystemID(theDataStatic.setID);
+
+	//get intervals out of the data
+
+	$.ajax({
+		type: "POST",
+		url: "solarPanelDBupdate.php",
+		data: theDataStatic.intervals,
+		success: function(){
+			alert( "Data Saved for Static Panel")
+		}
+	})
+	</script>
+</html>

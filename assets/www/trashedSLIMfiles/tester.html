@@ -1,0 +1,177 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+            "http://www.w3.org/TR/html4/strict.dtd">
+
+<html>
+<head>
+	<title>Enlighten History Demo</title>
+	<link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css" rel="stylesheet" type="text/css"/>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.2/jquery.min.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+	<script src="jquery.flot.min.js"></script>
+	<script src="enlighten-api.js"></script>
+	<script src="enlighten-graph.js"></script>
+</head>
+
+<body>
+
+	<h1>Enlighten History Example</h1>
+	Powered by<br><a href="http://enphase.com"><img src="EnphaseAPIMark.png"></a><br>
+	<p>API Key: <input id="apikey" type="text"></p>
+	<p>Show Date: <input id="statsdate" type="text"></p>
+	<input class="plotButton" type="button" value="Plot"><br>
+	<p style="font-size:smaller">
+	Notes:
+	<ul style="font-size:smaller">
+	<li>Your API key is available on your Enlighten account page</li>
+	<li>It's saved in a cookie on your computer for next time</li>
+	<li>I do not see or save your API key, but you'll need to trust me or read the javascript</li>
+	<li>You can hover over the graph for a tooltip showing exact values</li>
+	</ul><p>
+	<div id="graph" style="width:600px;height:300px;"></div>
+
+<script type="text/javascript">
+
+$.extend({
+  getUrlVars: function(){
+    var vars = [], hash;
+    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+    for(var i = 0; i < hashes.length; i++)
+    {
+      hash = hashes[i].split('=');
+      vars.push(hash[0]);
+      vars[hash[0]] = hash[1];
+    }
+    return vars;
+  },
+  getUrlVar: function(name){
+    return $.getUrlVars()[name];
+  }
+});
+
+
+$(function() {
+	$( "#statsdate" ).datepicker({ maxDate: '+0d' });
+
+function createCookie(name,value,days) {
+	if (days) {
+		var date = new Date();
+		date.setTime(date.getTime()+(days*24*60*60*1000));
+		var expires = "; expires="+date.toGMTString();
+	}
+	else var expires = "";
+	document.cookie = name+"="+value+expires+"; path=/";
+}
+
+function readCookie(name) {
+	var nameEQ = name + "=";
+	var ca = document.cookie.split(';');
+	for(var i=0;i < ca.length;i++) {
+		var c = ca[i];
+		while (c.charAt(0)==' ') c = c.substring(1,c.length);
+		if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+	}
+	return null;
+}
+
+
+
+
+
+function graph(stats)
+{
+    var intervals = stats.intervals;
+
+    var power = [];
+    var energy = [];
+    var totalEnergy = 0;
+    var date = new Date();
+	var xmlDates = '<series>';
+	var xmlkW = "<graph gid='0'>";
+	var xmlkWh = "<graph gid='1'>";
+	
+    // Push all data onto arrays for graphing
+    for (var i = 0; i < intervals.length; i++) {
+        var jDate;
+        date.setISO8601(intervals[i].end_date);
+        // Date comes back in UTC; convert to local (or array?) time
+        jDate = date.getTime() - date.getTimezoneOffset() * 60 * 1000;
+        totalEnergy += intervals[i].enwh;
+        power.push([jDate, intervals[i].powr/1000]);
+        energy.push([jDate, totalEnergy/1000]);
+		xmlDates=xmlDates+"<value xid='"+i+"'>"+jDate+'</value>';
+		xmlkW=xmlkW+"<value xid='"+i+"'>"+(intervals[i].powr/1000)+'</value>';
+		xmlkWh=xmlkWh+"<value xid='"+i+"'>"+totalEnergy/1000+'</value>';
+    }
+	
+	
+	xmlDates=xmlDates+"</series>";
+	xmlkW=xmlkW+"</graph>";
+	xmlkWh=xmlkWh+"</graph>";
+	var xmlText = encodeURIComponent("<chart>"+xmlDates+"<graphs>"+xmlkW+xmlkWh+"</graphs></chart>");
+	
+	var so = new SWFObject("amline/amline.swf", "amline", "600", "400", "8", "#FFFFFF");
+	so.addVariable("path", "amline/");
+	so.addVariable("chart_settings", encodeURIComponent("<settings><font>Tahoma</font><hide_bullets_count>18</hide_bullets_count><background><alpha>90</alpha><border_alpha>10</border_alpha></background><plot_area><margins><left>50</left><right>40</right><bottom>65</bottom></margins></plot_area><grid><x><alpha>10</alpha><approx_count>9</approx_count></x><y_left><alpha>10</alpha></y_left></grid><axes><x><width>1</width><color>0D8ECF</color></x><y_left><width>1</width><color>0D8ECF</color></y_left></axes><indicator><color>0D8ECF</color><x_balloon_text_color>FFFFFF</x_balloon_text_color><line_alpha>50</line_alpha><selection_color>0D8ECF</selection_color><selection_alpha>20</selection_alpha></indicator><zoom_out_button><text_color_hover>FF0F00</text_color_hover></zoom_out_button><help><button><color>FCD202</color><text_color>000000</text_color><text_color_hover>FF0F00</text_color_hover></button><balloon><text><![CDATA[Click on the graph to turn on/off value baloon <br/><br/>Click on legend key to show/hide graph<br/><br/>Mark the area you wish to enlarge]]></text><color>FCD202</color><text_color>000000</text_color></balloon></help><graphs><graph gid='0'><title>Anomaly</title><color>0D8ECF</color><color_hover>FF0F00</color_hover><selected>0</selected></graph><graph gid='1'><title>Smoothed</title><color>B0DE09</color><color_hover>FF0F00</color_hover><line_width>2</line_width><fill_alpha>30</fill_alpha><bullet>round</bullet></graph></graphs><labels><label lid='0'><text><![CDATA[<b>Temperature anomaly</b>]]></text><y>25</y><text_size>13</text_size><align>center</align></label></labels></settings>"));
+	so.addVariable("chart_data",xmlText);
+	so.write("amcharts_1334463935019");
+}
+
+
+
+
+
+// Callback for "plot" button; this in turn calls back to plotGraph in enlighten-graph.js
+function plotSystemGraph(data)
+{
+	// This api key was good, save it in a cookie
+	createCookie('apiKey', apiKey, 365);
+
+	// Just pick first system for now
+	var systemID = data.systems[0].system_id;
+
+	// And send the request for the stats
+	var apiRequest = new enphaseApiRequest();
+	apiRequest.apiKey = document.getElementById('apikey').value;
+	apiRequest.systemID= systemID;
+
+	var start = document.getElementById('statsdate').value;
+	var date = $("#statsdate").datepicker("getDate")
+
+	if (date) {
+		var isodate = date.toISO8601String();
+		apiRequest.getStats(graph);
+	} else {
+		apiRequest.getStats(graph);
+	}
+}
+
+// First try apiKey on url, then try cookie
+var apiKey= $.getUrlVar('apiKey');
+
+if (!apiKey)
+	apiKey = readCookie('apiKey')
+
+// Put it on the page and plot the graph
+if (apiKey) {
+	document.getElementById('apikey').value = apiKey;
+	var apiRequest = new enphaseApiRequest();
+	apiRequest.apiKey = apiKey;
+	apiRequest.getSystems(plotSystemGraph);
+}
+
+$("input.plotButton").click(function () {
+	var apiKey = document.getElementById('apikey').value;
+
+	if (apiKey) {
+		var apiRequest = new enphaseApiRequest();
+		apiRequest.apiKey = apiKey;
+		apiRequest.getSystems(plotSystemGraph);
+	}
+});
+
+});
+
+</script>
+</body>
+</html>
